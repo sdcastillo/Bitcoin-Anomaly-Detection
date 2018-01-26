@@ -1,5 +1,5 @@
 ---
-title: "Bitcoin_Example_For_Article"
+title: "Bitcoin Anomaly Detection Example"
 author: "Sam Castillo"
 date: "January 26, 2018"
 output: 
