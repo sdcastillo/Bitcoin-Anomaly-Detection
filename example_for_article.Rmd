@@ -1,0 +1,135 @@
+---
+title: "Bitcoin_Example_For_Article"
+author: "Sam Castillo"
+date: "January 26, 2018"
+output: 
+  html_document:
+    toc: true
+---
+
+```{r message = F, warning = F}
+library(TSA)
+library(zoo)
+library(forecast)
+library(lubridate)
+library(dplyr)
+library(tidyquant)
+library(gridExtra)
+
+#download the data
+global.start.date = "2017-01-01"; global.end.date = "2018-01-23"
+bitcoin_data = getSymbols(Symbols = "BTC-USD", env = NULL, auto.assign = F, src = "yahoo",from = global.start.date, to = global.end.date)
+bitcoin_close = bitcoin_data[,4]
+BTC.df = data_frame(date = seq(from = ymd(global.start.date), to = ymd(global.end.date), by = "days"), BTC_close = as.numeric(bitcoin_close))
+```
+
+## Overview
+
+When most people think of machine learning, the main emphasis is on usually on making predictions or or data mining.  Anomaly detection, or outlier classification, is a third major use for many types of models.  In a nutshell, this process detects sudden or drastic shifts in a process.  For instance, bank managers can be alerted of fraud if an account suddenly experiences abnormal activity, or website owners can track trending content in real-time.
+
+This [Shiny application](https://samdc.shinyapps.io/Bitcoin_Anomaly_Detection/) identifies anomalous behavior in the Bitcoin Price Index [(BTC-USD)](https://finance.yahoo.com/quote/BTCUSD=X/)
+
+## Methods
+
+1. Transformation to approximately stationary time series
+2. Fit ARIMA model
+3. Classify outliers
+
+## Step 1: Transformation
+
+The time series is first transformed with a natural logarithm to stabilize the variance, and is then differenced to eliminate trend.  This can be a simple single differencing, or a more sophistocated seasonal differencing or fractional differencing.
+
+```{r}
+#Set desired sensitivity threshold
+alpha = 0.01
+#Set start and end dates
+start.date = ymd("2017-06-17")
+end.date = ymd("2017-08-18")
+
+#create data frame
+BTC.df = BTC.df %>%
+  filter(date >= start.date, date <= end.date)%>%
+  mutate(log_close = log(BTC_close),
+         log_diff_close = log_close - lag(log_close))
+#create time series object
+BTC.ts = as.ts(BTC.df$log_close)
+```
+## Step 2: Model Fitting
+
+Once the series is transformed, the model-fitting process would begin.  In a more sophistocated example, considerations would need to be made in order for an ARIMA model to be a logical choice, such as heteroscedasticity, deterministic time trends, one-time anomalies, and known predictor variables.  For Bitcoin, this is not always the case as of November 2017.
+
+These models are far from perfect, but do not need be.  The purpose is not for prediction, but to merely identify abnormal price behavior.  For short time periods, the model is often a moving average MA(1), AR(1), or ARMA(1,1) model of the differenced log of the closing price.  Over longer time intervals, more complex models allow for greater sensitivity to price fluctuations.
+
+```{r}
+#create plots
+p1 = BTC.df %>%
+  ggplot(aes(x = date, y = BTC_close)) + 
+  geom_line() + 
+  ggtitle("Step #1.1: Bitcoin Closing Price (USD)") + 
+  xlab("Date") + 
+  ylab("BTC") + 
+  theme_light()
+
+p2 = BTC.df %>%
+  ggplot(aes(x = date, y = log_close)) + 
+  geom_line() + 
+  ggtitle("Step #1.2: Log of Closing Price") + 
+  xlab("Date") + 
+  ylab("log(BTC)") + 
+  theme_light()
+
+p3 = BTC.df %>%
+  ggplot(aes(x = date, y = log_diff_close)) + 
+  geom_line() + 
+  ggtitle("Step #1.3: Differenced Log of Closing Price") + 
+  xlab("Date") + 
+  ylab("Differenced log(BTC)") + 
+  theme_light()
+
+grid.arrange(p1, p2, p3)
+```
+
+## Step 3: Outlier Classification
+
+Once the model is fit, points are classified as being outliers or not.  In this app, the user specifies a risk tolerance level alpha, between 0.01 and 0.1, which serves as this cutoff.  If the standardized residual is above the cutoff, then the point is an outlier.  The lower the threshold, the higher the sensitivity.  As seen below, the points which originally appeared to be suspect are classified in red as anomalies.
+
+```{r}
+#A model is fit the the log of the adjusted closing price
+model = auto.arima(log(BTC.ts))
+#idendify which residuals are above the sensitivity threshold
+anom_index = which( abs(residuals(model)) > alpha)
+anom_dates = start.date + days(anom_index)
+#find the standard deviation
+sigma = sd(residuals(model))
+
+```
+
+```{r}
+#add these results to the data frame
+BTC.df  = BTC.df %>%
+  mutate(fitted = as.numeric(model$fitted),
+         #1.96 standard deviations corresponds to a 95% confidence interval assuming normality of the residuals
+         upper = fitted + 1.96*sigma,
+         lower = fitted - 1.96*sigma,
+         residual = as.numeric(residuals(model)),
+         anom_points = ifelse(date %in% anom_dates,
+                              yes = fitted,
+                              no = NA))
+
+#create a plot with confidence bands
+p4 = BTC.df %>%
+  ggplot(aes(x = date, y = fitted)) + 
+  geom_line() + 
+  geom_point(aes(y = anom_points, , size = residual), col = "red", alpha = 0.4) +
+  ggtitle("Step #4: Anomaly Events for BTC Closing Price") + 
+  xlab("Date") + 
+  ylab("Log of BTC Closing Price (USD)") + 
+  geom_ribbon(mapping = aes(ymin = lower, ymax = upper, fill = "95% confidence band"), alpha = 0.1, color = "lightblue") +
+  labs(fill ="") + 
+  theme(legend.position = "below") +
+  theme_light()
+
+p4
+```
+
+
