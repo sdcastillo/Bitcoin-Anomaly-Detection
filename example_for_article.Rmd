@@ -104,7 +104,7 @@ sigma = sd(residuals(model))
 
 ```
 
-```{r}
+```{r }
 #add these results to the data frame
 BTC.df  = BTC.df %>%
   mutate(fitted = as.numeric(model$fitted),
@@ -127,7 +127,8 @@ p4 = BTC.df %>%
   geom_ribbon(mapping = aes(ymin = lower, ymax = upper, fill = "95% confidence band"), alpha = 0.1, color = "lightblue") +
   labs(fill ="") + 
   theme(legend.position = "below") +
-  theme_light()
+  theme_light() + 
+  theme(legend.position="bottom")
 
 p4
 ```
