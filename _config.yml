@@ -1,0 +1,22 @@
+# SamWiki theme contract
+# Theme setup follows GitHub's Jekyll theme guide:
+# https://docs.github.com/en/pages/setting-up-a-github-pages-site-with-jekyll/adding-a-theme-to-your-github-pages-site-using-jekyll
+#
+# Skin copied from sdcastillo/sdcastillo.github.io branch cursor/samwiki-hub-f1dc:
+#   _config.yml                 theme: jekyll-theme-cayman
+#   assets/css/style.scss
+#   _layouts/default.html
+#   _includes/head-custom.html
+#   _includes/samwiki-nav.html
+# Pages set `samwiki: true` in front matter.
+#
+# This project site publishes from the repository root on the default branch.
+# Live URL: https://sdcastillo.github.io/Bitcoin-Anomaly-Detection/
+
+title: Bitcoin Anomaly Detection
+description: ARIMA residuals that mark sudden jumps in the daily Bitcoin close.
+theme: jekyll-theme-cayman
+show_downloads: false
+markdown: kramdown
+plugins:
+  - jekyll-seo-tag
